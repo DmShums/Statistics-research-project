@@ -1,0 +1,257 @@
+---
+title: "Research project"
+authors: "Yurevych Nataliia, Muryn Victor, Shumskyi Dmytro"
+output: html_notebook
+---
+
+# Students' Performance in Exams
+
+The first step is to import all required libraries.
+
+```{r}
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("coefplot")
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(coefplot)
+```
+
+Our research aims to understand which factors influence students' academic success in the USA and consolidate knowledge from the P&S course in practice.
+
+After, we should load our dataset. It was taken from [Kaggle (Students Performance in Exams)](#0). Let us take a look at the first rows.
+
+```{r}
+students = read_csv("./StudentsPerformance.csv", show_col_types = FALSE);
+
+head(students, 5)
+```
+
+In our dataset, each student has three grades: math score, reading score, and writing score. To work with a score, we will create a new column score, an average value of all student scores.
+
+```{r}
+students$score = (students$`math score` + students$`writing score` + students$`reading score`) / 3
+
+hist(
+  students$score,
+  main = "Histogram of average student score",
+  xlab = "average score",
+  breaks = 20 # each 5 points
+)
+```
+
+Now we are ready to test our hypotheses.
+
+## №1 Lunch type and academic performance
+
+#### H0: The type of lunch (standard vs. free/reduced) has no significant impact on students' academic performance ($\mu_0 = μ_1$).
+
+#### H1: The type of lunch significantly affects students' academic performance ($\mu_0 \neq μ_1$).
+
+Let's group students by the type of lunch.
+
+```{r}
+# Split data into two groups
+group_standard_lunch <- students %>% filter(lunch == "standard")
+group_free_reduced_lunch <- students %>% filter(lunch == "free/reduced")
+```
+
+Now let's run a t-test to compare means of two groups.
+
+```{r}
+# Perform t-test
+t_test_result <- t.test(group_standard_lunch$score, group_free_reduced_lunch$score)
+
+t_test_result
+```
+
+The results of the t-test indicate a highly significant difference between the two groups of students (those with "standard" lunch and those with "free/reduced" lunch).
+
+-   The t-value of $9.3232$ suggests that the difference in means is substantial and is unlikely to have occurred by random chance.
+
+-   The very small p-value that is less than $< 2.2e-16$ is essentially zero, indicating strong evidence against the null hypothesis ($H_0$ - the type of lunch (standard vs. free/reduced) has no significant impact on students' academic performance).
+
+-   The 95% confidence interval [ $6.818936$, $10.457360$] does not contain zero, further supporting the conclusion that there is a significant difference in academic performance between the two lunch groups, and this difference is unlikely to be due to a random chance.
+
+-   The mean academic score of students with standard lunch ($70.83721$) is much higher than the mean academic score of students with free/reduced lunch ($62.19906$).
+
+Pay attention, that in the context of educational research, the type of lunch a student receives (standard vs. free/reduced) is often used as an indicator of socio-economic status.
+
+```{r}
+# Create box plots
+boxplot_data <- students %>%
+  filter(lunch %in% c("standard", "free/reduced"))
+
+ggplot(boxplot_data, aes(x = lunch, y = score, fill = lunch)) +
+  geom_boxplot() +
+  labs(title = "Comparison of Average Scores by Lunch Type",
+       x = "Lunch Type",
+       y = "Average Score")
+```
+
+A box plot is a graphical representation of the distribution of a dataset. It displays key summary statistics, such as the median, quartiles, and potential outliers, allowing us to assess the central tendency and spread of our data. Box plots are particularly useful for comparing the distributions of multiple groups or variables.
+
+1.  **Box:** The length of the box indicates the spread of the middle 50% of the data.
+
+2.  **Line inside the box:** This line represents the median (Q2) of the dataset.
+
+3.  **Whiskers:** The whiskers extend from the edges of the box to the minimum and maximum values.
+
+4.  **Outliers:** Individual data points located beyond the whiskers are outliers and are plotted as separate points. Outliers can help identify data points that significantly deviate from the overall distribution.
+
+I used the box plots because it allows the quick comparison of two groups.
+
+```{r}
+# Create histograms
+hist_data <- students %>%
+  filter(lunch %in% c("standard", "free/reduced"))
+
+ggplot(hist_data, aes(x = score, fill = lunch)) +
+  geom_histogram(binwidth = 5, position = "dodge") +
+  labs(title = "Distribution of Average Scores by Lunch Type",
+       x = "Average Score",
+       y = "Frequency") +
+  facet_wrap(~lunch, ncol = 2)
+```
+
+```{r}
+# Count the number of rows in each group
+group_counts <- students %>%
+  group_by(lunch) %>%
+  summarise(count = n())
+
+print(group_counts)
+```
+
+We have twice less student's with free/reduced lunch, that's why the distributions at the histogram differ a lot.
+
+#### Conclusion
+
+In summary, based on this analysis, we have strong evidence to conclude that the type of lunch significantly affects students' academic performance, with students receiving standard lunch generally achieving higher average scores compared to those receiving free/reduced lunch.
+
+Based on the provided box plot and the contextual understanding that lunch type can be an indicator of socio-economic status, I make following conclusions:
+
+1.  **Socio-Economic indicator**: Since the type of lunch - standard versus free/reduced - is correlated with socio-economic status, the differences in academic performance could reflect underlying socio-economic disparities. Students receiving standard lunch, likely coming from higher socio-economic backgrounds, tend to have higher average scores.
+
+2.  **Academic performance**: The data suggests that students with standard lunch outperform their peers who receive free/reduced lunch in terms of average scores. This could be influenced by a variety of factors associated with socio-economic status, such as access to resources, educational support outside of school, and overall well-being.
+
+3.  **Policy implications**: These findings could have significant implications for educational policy, highlighting the need for targeted interventions to support students who are potentially disadvantaged by their socio-economic status.
+
+4.  **Educational equity**: The evidence may suggest a need for strategies aimed at leveling the playing field, such as additional academic support, resources, and programs specifically designed for students who receive free/reduced lunch.
+
+## №2 Race/ethnicity and academic performance
+
+In this block we have short overview of the correlation between **race/ethnicity** and academic performance of students. Let's say we have these two hypothesis:
+
+-   **H0: Race/ethnicity has no significant impact on students' academic performance.**
+
+-   **H1: Students' academic performance significantly varies with race/ethnicity.**
+
+In current situation we can analyse the following hypothesis by Chi-Square test:
+
+```{r}
+chisq.test(students$`race/ethnicity`, students$score)
+```
+
+Why Chi-Square test? By analyzing the relationships between categories in a two-by-two table, the chi-square test determines if one variable "depends" on the other, meaning their choices aren't completely independent.
+
+In summary, based on the **p-value** of **0.05381**, we would likely not reject the null hypothesis, indicating that there isn't strong evidence to support the idea that **race/ethnicity** significantly impacts students' academic performance in the given dataset.
+
+Violin plot to show range of **score** that each **race/ethnicity** has:
+
+```{r}
+ggplot(students, aes(x = `race/ethnicity`, y = score, fill = `race/ethnicity`)) +
+  geom_violin() +
+  labs(title = "Impact of Race/Ethnicity on Academic Performance",
+       x = "Race/Ethnicity", y = "Average Score")
+```
+
+Based on the plot, we can indeed observe that there is no significant difference between **races/ethnicities** in their capability to achieve high or low **scores**.
+
+## №3 Preparation courses effectiveness
+
+For now, let us consider different hypotheses. Our dataset has an interesting column, "test preparation course", which shows whether students took additional courses or studies. "test preparation course" is a binary feature, so we split our sample into two parts: those who completed and those who did not.
+
+```{r}
+X = students[students$`test preparation course` == "completed", ]
+Y = students[students$`test preparation course` == "none", ]
+
+cat("There're", dim(X)[1], "of those, who completed preparation course\n")
+cat("There're", dim(Y)[1], "of those, who didn't complete preparation course")
+```
+
+Now we want to test 2 hypothesis: $$H_0 : \mu_X = \mu_Y \text{ vs. } H_1 : \mu_X > \mu_Y$$
+
+To perform this test, we are going to use a t-test. This test tests means two samples, and it does not need to know variance (which, in our case, is good). It relies on an estimator of sample variance. Let us perform it and analyze the output.
+
+```{r}
+t.test(X$score, Y$score, alternative='g')
+```
+
+Since the p-value = 2.2e-16 is less than 0.05, we have to reject $H_0$ and accept $H_1$.\
+To sum up, completing some preparation courses before the exam improves grades significantly.
+
+To be sure of that, we could plot our data as well. Let us look at an average score with standard deviation in this case.
+
+```{r}
+# Calculate mean and standard deviation for each group
+mean_score <- tapply(students$score, students$`test preparation course`, mean)
+sd_score <- tapply(students$score, students$`test preparation course`, sd)
+count <- tapply(students$score, students$`test preparation course`, length)
+
+# Create a data frame for plotting
+plot_data <- data.frame(
+  Course = names(mean_score),
+  Mean_Score = as.numeric(mean_score),
+  SD = as.numeric(sd_score),
+  Count = as.numeric(count)
+)
+
+# Bar plot with error bars
+ggplot(plot_data, 
+  aes(x = Course, y = Mean_Score, fill = Course)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = Mean_Score - SD/sqrt(Count), ymax = Mean_Score + SD/sqrt(Count)),
+                position = position_dodge(width = 0.7), width = 0.25) +
+  labs(title = "Effectiveness of Test Preparation Courses on Student Grades",
+       x = "Test Preparation Course",
+       y = "Mean Score") +
+  theme_minimal()
+
+```
+
+Here, we see that students who completed preparation courses have higher average scores than those who did not. Nevertheless, the standard deviation is small enough to say this difference is significant.
+
+## Regression Model
+
+Here, let us look at what factors impact students' scores and predict the score of the next student. To do this, we built a linear model. In fact, all our data are factors, and almost all data are binary (either completed or not, and so on). This fact allows us to determine the impact of each feature on the result.
+
+```{r}
+students_without_grades <- students[,c(1,2,3,4,5,9)]
+students.lm_model <- lm(score ~ ., data = students_without_grades)
+
+summary(students.lm_model)
+```
+
+```{r}
+plot_model <- coefplot(students.lm_model, main = "LM Coefficients with Confidence Intervals")
+print(plot_model)
+```
+
+Here, we can see that some features strongly impact the score (very low p-value). That is a gender (males generally have 3.72 points less than women). Those with a standard lunch had 8.77 points more than those with free/reduced lunch. Also, those who completed the test preparation course have 7.63 points more than those who did not.
+
+Other features also influence the score, but some features have no impact on the score (p-value is too high), like if your parents are well educated or not or your race/ethnicity.
+
+## Conclusions
+
+-   **Socio-Economic Indicator:** The analysis of students' academic performance based on lunch type reveals a significant correlation between socio-economic indicators and scores. Students receiving standard lunch, likely reflecting a higher socio-economic background, consistently outperform their peers with free/reduced lunch. This emphasizes the role of socio-economic factors in shaping educational outcomes.
+
+-   **Race/ethnicity:** The exploration of the relationship between race/ethnicity and academic performance, using a chi-square test, did not yield strong evidence to support the idea that race/ethnicity significantly impacts students' scores. The analysis suggests that, within the given dataset, students from different racial/ethnic backgrounds exhibit similar capabilities in achieving high or low scores.
+
+-   **Test Preparation Courses:** The analysis demonstrates a clear positive impact of completing test preparation courses on academic performance. Students who participated in such courses achieved significantly higher average scores than those who did not. This finding highlights the potential benefits of implementing and encouraging participation in test preparation programs.
+
+-   **Regression model:** The regression model provides a deeper understanding of the factors influencing students' scores. Gender, lunch type, and completion of test preparation courses emerged as significant predictors.
